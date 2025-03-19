@@ -28,6 +28,8 @@ def main():
     # opening and creating a .txt file to store the threhsolds information
     path_to_outputs = config['path_to_outputs']
 
+    path_to_histograms_inside_root_files = config['path_to_histograms_inside_root_files']
+
     # Lets remove the .txt if it exists in order not to cluster things ...
     try:
         os.remove(path_to_outputs)

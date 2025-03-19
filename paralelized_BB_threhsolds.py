@@ -43,8 +43,10 @@ def main():
 
     histogram_type = config['histogram_type']
 
+    path_to_histograms_inside_root_files = config['path_to_histograms_inside_root_files']
+
     #### reading the dataframe and histograms from inside the .root files
-    dataframe  = helpers.read_Occupancy_histograms_parallel(config['path_to_root_files'], config['histogram_type'], config['good_run_list'], max_workers=24)
+    dataframe  = helpers.read_Occupancy_histograms_parallel(config['path_to_root_files'], config['histogram_type'], config['path_to_histograms_inside_root_files'], config['good_run_list'], max_workers=24)
     #dataframe = pd.read_pickle("occupancy_histograms.pkl")
     
     initialize_global_dataframe(dataframe)

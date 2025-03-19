@@ -61,7 +61,7 @@ plt.errorbar(x_data, chi2_q95, yerr=y_err_chi2, fmt='o', label='Chi2 Data (95th 
 plt.plot(x_fit, custom_fit(x_fit, *params_chi2), 'r--', label=f'Fit: {params_chi2[0]:.4f}/x + {params_chi2[1]:.4f}²')
 plt.xlabel('Number of Reference Runs', fontsize=16)
 plt.ylabel('Chi2 95th Quantile', fontsize=16)
-plt.title('Chi2 Fit', fontsize=16)
+plt.title(f'{histogram_type} - Chi2 Fit', fontsize=16)
 plt.legend()
 
 # Maxpull plot
@@ -70,7 +70,7 @@ plt.errorbar(x_data, maxpull_q95, yerr=y_err_maxpull, fmt='o', label='Maxpull Da
 plt.plot(x_fit, custom_fit(x_fit, *params_maxpull), 'r--', label=f'Fit: {params_maxpull[0]:.4f}/x + {params_maxpull[1]:.4f}²')
 plt.xlabel('Number of Reference Runs', fontsize=16)
 plt.ylabel('Maxpull 95th Quantile', fontsize=16)
-plt.title('Maxpull Fit', fontsize=16)
+plt.title(f'{histogram_type} - Maxpull Fit', fontsize=16)
 plt.legend()
 
 plt.tight_layout()

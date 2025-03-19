@@ -11,11 +11,11 @@ from tqdm import tqdm
 
 # Helper function for parallel execution
 def process_run(args):
-    run, path_to_DT_files, histogram_type = args
+    run, path_to_DT_files, histogram_type, path_to_histograms_inside_root_files = args
     new_rows = []
     try:
         file = uproot.open(f"{path_to_DT_files}DQM_V0001_DT_R000{run}.root")
-        path_to_histos = f"DQMData/Run {run}/DT/Run summary/01-Digi/"
+        path_to_histos = f"DQMData/Run {run}/DT/Run summary/{path_to_histograms_inside_root_files}/"
         histos = file[path_to_histos].keys()
         for histo in histos:
             if histogram_type in histo and histo.split('/')[-1]:
@@ -27,8 +27,8 @@ def process_run(args):
     return new_rows
 
 # Main parallelized function
-def read_Occupancy_histograms_parallel(path_to_root_files, histogram_type, run_list, max_workers=24):
-    tasks = [(run, path_to_root_files, histogram_type) for run in run_list]
+def read_Occupancy_histograms_parallel(path_to_root_files, histogram_type, path_to_histograms_inside_root_files ,run_list, max_workers=24):
+    tasks = [(run, path_to_root_files, histogram_type, path_to_histograms_inside_root_files) for run in run_list]
 
     Occupancy_df = pd.DataFrame(columns=['Name', 'Run', 'Array'])
     all_rows = []
