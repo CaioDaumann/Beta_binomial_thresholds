@@ -19,9 +19,9 @@ def main():
     config = json.load(open(sys.argv[1]))
 
     ########### comments first two if .pkl is already there ...
-    #dataframe = helpers.read_Occupancy_histograms(config['path_to_root_files'], config['path_to_histograms_inside_root_files'], config['histogram_type'], config['good_run_list'])
-    #dataframe.to_pickle("occupancy_histograms.pkl")
-    dataframe = pd.read_pickle("occupancy_histograms.pkl")
+    dataframe = helpers.read_Occupancy_histograms(config['path_to_root_files'], config['path_to_histograms_inside_root_files'], config['histogram_type'], config['good_run_list'])
+    dataframe.to_pickle("occupancy_histograms.pkl")
+    #dataframe = pd.read_pickle("occupancy_histograms.pkl")
     
     number_of_reference_runs_ = config[ "number_of_reference_runs"]
     
@@ -29,7 +29,10 @@ def main():
     path_to_outputs = config['path_to_outputs']
 
     # Lets remove the .txt if it exists in order not to cluster things ...
-    os.remove(path_to_outputs)
+    try:
+        os.remove(path_to_outputs)
+    except:
+        pass
     
     for number_of_reference_runs in number_of_reference_runs_:
      
@@ -62,9 +65,13 @@ def main():
                         "Array"
                     ].values[0])
                 
-                Chi2, maxpull = bb_test.beta_binomial(histo_data , list_of_reference_hists )
-                Chi_metrics.append(Chi2)
-                Maxpull_metrics.append(abs(maxpull))
+                # sometimes the beta_binomial function fails, so we need to catch the exception
+                try:
+                    Chi2, maxpull = bb_test.beta_binomial(histo_data , list_of_reference_hists )
+                    Chi_metrics.append(Chi2)
+                    Maxpull_metrics.append(abs(maxpull))
+                except:
+                    pass
 
         # Plot histogram for Chi_metrics
         plt.figure()

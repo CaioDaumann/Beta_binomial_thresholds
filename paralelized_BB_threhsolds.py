@@ -23,12 +23,16 @@ def compute_metrics(args):
     histo, run, reference_runs = args
     
     global global_df_dict
-    histo_data = global_df_dict.get((histo, str(run)))
-    list_of_reference_hists = [global_df_dict.get((histo, str(ref_run))) for ref_run in reference_runs]
+    try:
+        histo_data = global_df_dict.get((histo, str(run)))
+        list_of_reference_hists = [global_df_dict.get((histo, str(ref_run))) for ref_run in reference_runs]
 
-    Chi2, maxpull = bb_test.beta_binomial(histo_data, list_of_reference_hists)
-    
-    return Chi2, abs(maxpull)
+        Chi2, maxpull = bb_test.beta_binomial(histo_data, list_of_reference_hists)
+        return Chi2, abs(maxpull)
+
+    except Exception as e:
+        print(f"Error computing metrics for histo={histo}, run={run}: {e}")
+        return None  # To indicate a problem
 
 def main():
     if len(sys.argv) < 2:
@@ -39,7 +43,10 @@ def main():
 
     histogram_type = config['histogram_type']
 
-    dataframe = pd.read_pickle("occupancy_histograms.pkl")
+    #### reading the dataframe and histograms from inside the .root files
+    dataframe  = helpers.read_Occupancy_histograms_parallel(config['path_to_root_files'], config['histogram_type'], config['good_run_list'], max_workers=24)
+    #dataframe = pd.read_pickle("occupancy_histograms.pkl")
+    
     initialize_global_dataframe(dataframe)
     number_of_reference_runs_ = config["number_of_reference_runs"]
 
@@ -60,9 +67,14 @@ def main():
 
         with ProcessPoolExecutor(max_workers=24) as executor:
             results = list(tqdm(executor.map(compute_metrics, tasks), total=len(tasks), desc="Computing metrics"))
-            for chi, maxpull in results:
-                Chi_metrics.append(chi)
-                Maxpull_metrics.append(maxpull)
+            
+            for res in results:
+                if res is not None:
+                    chi, maxpull = res
+                    Chi_metrics.append(chi)
+                    Maxpull_metrics.append(maxpull)
+                else:
+                    print("Warning: A computation returned None, skipping...")
 
         chi2_mean, chi2_q90, chi2_q95, chi2_q98 = np.mean(Chi_metrics), np.quantile(Chi_metrics, 0.90), np.quantile(Chi_metrics, 0.95), np.quantile(Chi_metrics, 0.98)
         maxpull_mean, maxpull_q90, maxpull_q95, maxpull_q98 = np.mean(Maxpull_metrics), np.quantile(Maxpull_metrics, 0.90), np.quantile(Maxpull_metrics, 0.95), np.quantile(Maxpull_metrics, 0.98)

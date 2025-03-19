@@ -2,13 +2,25 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import sys
+import json
+
+if len(sys.argv) < 2:
+    print("Usage: python fit_thresholds.py <path_to_output_file>")
+    exit()
+
+### reading the json config file
+config = json.load(open(sys.argv[1]))
+
+path_to_outputs = config['path_to_outputs']
+histogram_type = config['histogram_type']
 
 # New function to fit
 def custom_fit(x, a, b):
     return a / x + b**2
 
 # Load the data
-output_file = "outputs/DT_occupancy_thresholds.txt"  # Replace this with your actual file path
+output_file = path_to_outputs  # Replace this with your actual file path
 df = pd.read_csv(output_file)
 
 # Add an additional point for 1 reference run (manually adjust if needed)
@@ -62,7 +74,7 @@ plt.title('Maxpull Fit', fontsize=16)
 plt.legend()
 
 plt.tight_layout()
-plt.savefig("fits_outputs/Occupancy_fits_quantiles.png")
+plt.savefig(f'fits_outputs/{histogram_type}fits_quantiles.png')
 plt.show()
 
 # Printing results

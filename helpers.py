@@ -4,13 +4,44 @@ This has to be done as the DQM folks were storing the 2022 data and the usual sc
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
-import matplotlib.colors as mcolors
-import os
 import uproot
+from concurrent.futures import ProcessPoolExecutor
+from tqdm import tqdm
+
+# Helper function for parallel execution
+def process_run(args):
+    run, path_to_DT_files, histogram_type = args
+    new_rows = []
+    try:
+        file = uproot.open(f"{path_to_DT_files}DQM_V0001_DT_R000{run}.root")
+        path_to_histos = f"DQMData/Run {run}/DT/Run summary/01-Digi/"
+        histos = file[path_to_histos].keys()
+        for histo in histos:
+            if histogram_type in histo and histo.split('/')[-1]:
+                name = histo.split('/')[-1]
+                array = np.array(file[path_to_histos + histo].values())
+                new_rows.append({'Name': name, 'Run': run, 'Array': array})
+    except Exception as e:
+        print(f"Error processing run {run}: {e}")
+    return new_rows
+
+# Main parallelized function
+def read_Occupancy_histograms_parallel(path_to_root_files, histogram_type, run_list, max_workers=24):
+    tasks = [(run, path_to_root_files, histogram_type) for run in run_list]
+
+    Occupancy_df = pd.DataFrame(columns=['Name', 'Run', 'Array'])
+    all_rows = []
+
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        results = list(tqdm(executor.map(process_run, tasks), total=len(tasks), desc="Processing runs"))
+        for rows in results:
+            all_rows.extend(rows)
+
+    Occupancy_df = pd.concat([Occupancy_df, pd.DataFrame(all_rows)], ignore_index=True)
+
+    return Occupancy_df
+
 
 # Function to append data
 def append_to_dataframe(dataframe, new_rows):
@@ -21,7 +52,7 @@ def read_Occupancy_histograms(path_to_root_files, path_to_histograms_inside_root
     path_to_DT_files = path_to_root_files
     path_inside_root = path_to_histograms_inside_root_files
 
-    #run_list = run_list[:10]
+    run_list = run_list[:10]
     no_training_list = [ 
         
             "OccupancyAllHits_perCh_W-2_St2_Sec1",
