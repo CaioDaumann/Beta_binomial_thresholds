@@ -56,19 +56,32 @@ def main():
     if os.path.exists(path_to_outputs):
         os.remove(path_to_outputs)
 
-    for number_of_reference_runs in number_of_reference_runs_:
-        reference_runs = pd.Series(dataframe.Run.unique()).sample(number_of_reference_runs, random_state=42).values
+    # Get a sorted list of runs from your dataframe
+    runs = sorted(dataframe.Run.unique())
+    histograms = dataframe.Name.unique()
 
-        data_runs = [run for run in dataframe.Run.unique() if run not in reference_runs]
-        histograms = dataframe.Name.unique()
-
+    for k in number_of_reference_runs_:
+        # Select data runs: only those runs with at least k runs following them.
+        data_runs = runs[:-k]
+        # For each data run, pick the next k runs as its reference runs.
+        reference_runs_list = [runs[i+1:i+1+k] for i in range(len(runs) - k)]
+        
         Chi_metrics = []
         Maxpull_metrics = []
 
-        tasks = [(histo, run, reference_runs) for histo in histograms for run in data_runs]
+        # Create tasks for each histogram and each (data_run, reference_runs) pair.
+        tasks = [
+            (histo, data_run, ref_runs)
+            for histo in histograms
+            for data_run, ref_runs in zip(data_runs, reference_runs_list)
+        ]
 
         with ProcessPoolExecutor(max_workers=24) as executor:
-            results = list(tqdm(executor.map(compute_metrics, tasks), total=len(tasks), desc="Computing metrics"))
+            results = list(tqdm(
+                executor.map(compute_metrics, tasks),
+                total=len(tasks),
+                desc=f"Computing metrics for k={k}"
+            ))
             
             for res in results:
                 if res is not None:
@@ -78,10 +91,27 @@ def main():
                 else:
                     print("Warning: A computation returned None, skipping...")
 
-        chi2_mean, chi2_q90, chi2_q95, chi2_q98 = np.mean(Chi_metrics), np.quantile(Chi_metrics, 0.90), np.quantile(Chi_metrics, 0.95), np.quantile(Chi_metrics, 0.98)
-        maxpull_mean, maxpull_q90, maxpull_q95, maxpull_q98 = np.mean(Maxpull_metrics), np.quantile(Maxpull_metrics, 0.90), np.quantile(Maxpull_metrics, 0.95), np.quantile(Maxpull_metrics, 0.98)
+        # Compute statistical metrics for Chi2 and Maxpull values.
+        chi2_mean   = np.mean(Chi_metrics)
+        chi2_q80    = np.quantile(Chi_metrics, 0.80)
+        chi2_q90    = np.quantile(Chi_metrics, 0.90)
+        chi2_q95    = np.quantile(Chi_metrics, 0.95)
+        chi2_q98    = np.quantile(Chi_metrics, 0.98)
+        chi2_q99    = np.quantile(Chi_metrics, 0.99)
+        
+        maxpull_mean  = np.mean(Maxpull_metrics)
+        maxpull_q80   = np.quantile(Maxpull_metrics, 0.80)
+        maxpull_q90   = np.quantile(Maxpull_metrics, 0.90)
+        maxpull_q95   = np.quantile(Maxpull_metrics, 0.95)
+        maxpull_q98   = np.quantile(Maxpull_metrics, 0.98)
+        maxpull_q99   = np.quantile(Maxpull_metrics, 0.99)
 
-        header = ["nReference_runs", "Chi2_mean", "Chi2_90th_quantile", "Chi2_95th_quantile", "Maxpull_mean", "Maxpull_90th_quantile", "Maxpull_95th_quantile"]
+        header = [
+            "nReference_runs", "Chi2_mean", "Chi2_80th_quantile", "Chi2_90th_quantile",
+            "Chi2_95th_quantile", "Chi2_98th_quantile", "Chi2_99th_quantile", "Maxpull_mean",
+            "Maxpull_80th_quantile", "Maxpull_90th_quantile", "Maxpull_95th_quantile",
+            "Maxpull_98th_quantile", "Maxpull_99th_quantile"
+        ]
 
         file_exists = os.path.isfile(path_to_outputs)
         write_header = not file_exists or os.stat(path_to_outputs).st_size == 0
@@ -90,12 +120,18 @@ def main():
             writer = csv.writer(f)
             if write_header:
                 writer.writerow(header)
-
-            row = [number_of_reference_runs, f"{chi2_mean:.4f}", f"{chi2_q90:.4f}", f"{chi2_q95:.4f}", f"{maxpull_mean:.4f}", f"{maxpull_q90:.4f}", f"{maxpull_q95:.4f}"]
+            row = [
+                k,
+                f"{chi2_mean:.4f}", f"{chi2_q80:.4f}", f"{chi2_q90:.4f}",
+                f"{chi2_q95:.4f}", f"{chi2_q98:.4f}", f"{chi2_q99:.4f}",
+                f"{maxpull_mean:.4f}", f"{maxpull_q80:.4f}", f"{maxpull_q90:.4f}",
+                f"{maxpull_q95:.4f}", f"{maxpull_q98:.4f}", f"{maxpull_q99:.4f}"
+            ]
             writer.writerow(row)
 
         folder = os.path.dirname(path_to_outputs) or "."
 
+        # Plot and save the Chi2 histogram.
         plt.figure()
         bins = np.linspace(0, chi2_q98, 40)
         plt.hist(Chi_metrics, bins=bins, edgecolor='black')
@@ -104,10 +140,12 @@ def main():
         plt.ylabel("Frequency")
         plt.xlim(0, chi2_q98)
         chi2_text = f"Mean: {chi2_mean:.4f}\n90th quantile: {chi2_q90:.4f}\n95th quantile: {chi2_q95:.4f}"
-        plt.text(0.95 * chi2_q98, plt.ylim()[1]*0.8, chi2_text, ha='right', bbox=dict(facecolor='white', alpha=0.5))
-        plt.savefig(os.path.join(folder, f'{histogram_type}_chi2_histogram_{number_of_reference_runs}.png'))
+        plt.text(0.95 * chi2_q98, plt.ylim()[1]*0.8, chi2_text, ha='right', 
+                bbox=dict(facecolor='white', alpha=0.5))
+        plt.savefig(os.path.join(folder, f'{histogram_type}_chi2_histogram_{k}.png'))
         plt.close()
 
+        # Plot and save the Maxpull histogram.
         plt.figure()
         bins = np.linspace(0, maxpull_q98, 40)
         plt.hist(Maxpull_metrics, bins=bins, edgecolor='black')
@@ -116,9 +154,11 @@ def main():
         plt.ylabel("Frequency")
         plt.xlim(0, maxpull_q98)
         maxpull_text = f"Mean: {maxpull_mean:.4f}\n90th quantile: {maxpull_q90:.4f}\n95th quantile: {maxpull_q95:.4f}"
-        plt.text(0.95 * maxpull_q98, plt.ylim()[1]*0.8, maxpull_text, ha='right', bbox=dict(facecolor='white', alpha=0.5))
-        plt.savefig(os.path.join(folder, f'{histogram_type}_maxpull_histogram_{number_of_reference_runs}.png'))
+        plt.text(0.95 * maxpull_q98, plt.ylim()[1]*0.8, maxpull_text, ha='right', 
+                bbox=dict(facecolor='white', alpha=0.5))
+        plt.savefig(os.path.join(folder, f'{histogram_type}_maxpull_histogram_{k}.png'))
         plt.close()
+
 
 if __name__ == "__main__":
     main()

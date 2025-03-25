@@ -24,17 +24,19 @@ output_file = path_to_outputs  # Replace this with your actual file path
 df = pd.read_csv(output_file)
 
 # Add an additional point for 1 reference run (manually adjust if needed)
+"""
 additional_point = pd.DataFrame({
     'nReference_runs': [1],
-    'Chi2_95th_quantile': [df['Chi2_95th_quantile'].iloc[0]],  # Example value; adjust if you have specific data
-    'Maxpull_95th_quantile': [df['Maxpull_95th_quantile'].iloc[0]],  # Example value; adjust if you have specific data
+    'Chi2_95th_quantile': [df['Chi2_90th_quantile'].iloc[0]],  # Example value; adjust if you have specific data
+    'Maxpull_95th_quantile': [df['Maxpull_90th_quantile'].iloc[0]],  # Example value; adjust if you have specific data
 })
 df = pd.concat([additional_point, df], ignore_index=True).sort_values(by='nReference_runs')
+"""
 
 # Extract necessary columns
 x_data = df['nReference_runs'].values
-chi2_q95 = df['Chi2_95th_quantile'].values
-maxpull_q95 = df['Maxpull_95th_quantile'].values
+chi2_q95 = df['Chi2_98th_quantile'].values
+maxpull_q95 = df['Maxpull_98th_quantile'].values
 
 # Define uncertainties based on reference run counts
 unc_dict = {1: 0.2, 2: 0.15, 4: 0.125, 6: 0.1, 8: 0.075}
